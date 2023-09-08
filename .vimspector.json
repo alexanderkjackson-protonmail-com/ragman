@@ -1,0 +1,17 @@
+{
+    "configurations": {
+        "ragman":{
+            "adapter": "debugpy",
+            "configuration": {
+                "name": "For Python debugging",
+                "type": "python",
+                "request": "launch",
+                "python.pythonPath": "~/.cache/pypoetry/virtualenvs/ragman-3J4YK9ny-py3.10/bin/python",
+                "program": "test.py",
+                "args": [
+                    "./datasets/zshall.txt"
+                ]
+            }
+        }
+    }
+}
