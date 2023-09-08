@@ -1,4 +1,5 @@
 import spacy
+from spacy.tokens import Doc
 import os
 import pickle
 import logging
@@ -52,6 +53,9 @@ class TextProcessor:
         self.chunk_size = chunk_size
         self.nlp = spacy.load(model)
         self.docs_stack = []
+        self.sentences = []
+        self.sentArray = []
+        self._preprocess_funcs
         # }}}
         with open(self.filePath, 'r', encoding='utf-8') as file:
             self.text = file.read()
@@ -61,6 +65,16 @@ class TextProcessor:
             doc = self.nlp(self.text[i:i + chunk_size])
             self.docs_stack.append(doc)
         # }}}
+
+        self.c_doc = Doc.from_docs(self.docs_stack)
+#         # {{{ Convert generators into list for subscriptable access
+        for sent in self.c_doc.sents:
+            self.sentArray.append(sent.text)
+#         for doc in self.docs_stack:
+#             for sent in doc.sents:
+#                 self.sentences.extend(str(sent))
+#             # self.sentences.extend(list(doc.sents))
+#         # }}}
 
         # {{{ Cache new object via pickle
         # if cache is True and os.path.exists(self.picklePath):
@@ -72,7 +86,16 @@ class TextProcessor:
             ) as pickleFile:
                 pickle.dump(self, pickleFile)
         # }}}
-    # {{{ get_sentence - Yields sentence iterator
+
+    def __getitem__(self, index):
+        """
+        Simply a test for subscript access.
+        This needs to be placed into a special subscripting method.
+        """
+        if isinstance(index, slice):
+            return self.sentArray[index.start:index.stop:index.step]
+        else:
+            return self.sentArray[index]
 
     def get_sentence(self):
         """
@@ -82,10 +105,11 @@ class TextProcessor:
 
         # for sentence in docs.sents:
 
-        for doc in self.docs_stack:
-            for sent in doc.sents:
-                yield sent
-
+        for sent in self.c_doc:
+            yield sent
+#        for doc in self.docs_stack:
+#            for sent in doc.sents:
+#                yield sent
         # with open(self.filePath, 'r', encoding='utf-8') as file:
         """
         for i, line in enumerate(self.text):
@@ -98,6 +122,12 @@ class TextProcessor:
                 yield sentence.text
         """
     # }}}
+
+    def add_preprocess(self, func):
+        """
+        Adds a pre-processing function.
+        """
+        self._preprocess_funcs.append(func)
 
     def set_sentence_boundary_detection(self, boundary_detector):
         self.nlp.add_pipe(boundary_detector, before='parser')
