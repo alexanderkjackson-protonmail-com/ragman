@@ -3,7 +3,7 @@ from spacy.tokens import Doc
 import os
 import pickle
 import logging
-from tools import preprocessors
+# from tools import preprocessors
 
 logLevel = os.environ.get('PYTHON_LOGLEVEL', default='ERROR')
 logging.basicConfig(level=logLevel)
@@ -32,6 +32,12 @@ class TextProcessor:
         logging.debug('Ingesting dataset {}'.format(file))
         with open(file, 'r', encoding='utf-8') as dataset:
             self.text = dataset.read()
+        # Initial chunking to respect max initialization size for Doc object.
+        if self.text is not None:
+            self.docChunk(self.text, self.chunk_size)
+            # Concantenate all the docs for convenience.
+            self.c_doc = Doc.from_docs(self.docs_stack)
+            del self.docs_stack  # Have to test this deletion is safe!
 
     def pickleSave(self, file):
         """
@@ -83,7 +89,9 @@ class TextProcessor:
         self.sentArray = []
         self._preprocess_funcs = []
         # }}}
-
+        # If no dataset supplied, short-circuit further construction.
+        if filePath is None:
+            return
         # Set picklePath based off stripped filePath
         self.picklePath = cachePath + self.filePath.lstrip('./')
         logging.debug("Cache file:{}".format(self.picklePath))
@@ -98,13 +106,6 @@ class TextProcessor:
             return
         # }}}
         self.ingest(self.filePath)
-
-        # Initial chunking to respect max initialization size for Doc object.
-        if self.text is not None:
-            self.docChunk(self.text, self.chunk_size)
-            # Concantenate all the docs for convenience.
-            self.c_doc = Doc.from_docs(self.docs_stack)
-            del self.docs_stack  # Have to test this deletion is safe!
 
         # Save instance to picklePath.
         # TODO: Change to json. Add compression.
