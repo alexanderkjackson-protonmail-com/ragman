@@ -11,6 +11,43 @@ cachePath = "./.pickle/"
 
 
 class TextProcessor:
+    def pickleLoad(self, picklePath):
+        logging.debug("Loading from pickle: {}".format(picklePath))
+        with open(picklePath, 'rb') as pickleFile:
+            cachedTextProcessor = pickle.load(pickleFile)
+            self.__dict__.update(cachedTextProcessor.__dict__)
+            return
+
+    def ingest(self, file):
+        logging.debug('Ingesting dataset {}'.format(file))
+        with open(self.filePath, 'r', encoding='utf-8') as file:
+            self.text = file.read()
+
+    def pickleSave(self, file):
+        """
+        Saves current class instance to a pickle file.
+        Overrides pickleFile attribute.
+        """
+        self.picklePath = file
+        with open(file, 'wb') as pickleFile:
+            pickle.dump(self, pickleFile)
+
+    def docChunk(self, text=None, chunk_size=None):
+        """
+        Chunks into a stack of docs, respecting max 1,000,000 characters for
+        doc.
+        """
+        # TODO: Check if text is empty and throw error if so.
+        # Consider: Unsure if we want to use self.nlp here. Need to decide
+        # whether to make parameters visible for these functions.
+        if text is None:
+            text = self.text
+        if chunk_size is None:
+            chunk_size = self.chunk_size
+        for i in range(0, len(text), chunk_size):
+            doc = self.nlp(text[i:i + chunk_size])
+            self.docs_stack.append(doc)
+
     def __init__(self,
                  filePath,
                  chunk_size=1000000,
@@ -27,27 +64,6 @@ class TextProcessor:
         :param model: The spaCy model to use for NLP tasks.
         Defaults to 'en_core_web_sm'.
         """
-
-        # Set picklePath based off stripped filePath
-        self.picklePath = cachePath + filePath.lstrip('./')
-        logging.debug("Cache file:{}".format(self.picklePath))
-
-        os.makedirs(os.path.dirname(self.picklePath), exist_ok=True)
-
-        # {{{ Load from Pickle file if caching enabled.
-        # Rework this? Do not want to save pickleFile as an attribute.
-        logging.debug("Test debug")
-        if cache is True and os.path.exists(self.picklePath):
-            logging.debug('Pickle file found. Loading from pickle.')
-            with open(
-                self.picklePath,
-                # "./.pickle/{}".format(filePath),
-                'rb'
-            ) as pickleFile:
-                cachedTextProcessor = pickle.load(pickleFile)
-                self.__dict__.update(cachedTextProcessor.__dict__)
-                return
-        # }}}
         # {{{ Boilerplate assignments for init.
         self.filePath = filePath
         self.chunk_size = chunk_size
@@ -55,43 +71,46 @@ class TextProcessor:
         self.docs_stack = []
         self.sentences = []
         self.sentArray = []
-        self._preprocess_funcs
-        # }}}
-        with open(self.filePath, 'r', encoding='utf-8') as file:
-            self.text = file.read()
-
-        # {{{ Chunk text into stack of docs
-        for i in range(0, len(self.text), chunk_size):
-            doc = self.nlp(self.text[i:i + chunk_size])
-            self.docs_stack.append(doc)
+        self._preprocess_funcs = []
         # }}}
 
-        self.c_doc = Doc.from_docs(self.docs_stack)
-#         # {{{ Convert generators into list for subscriptable access
-        for sent in self.c_doc.sents:
-            self.sentArray.append(sent.text)
-#         for doc in self.docs_stack:
-#             for sent in doc.sents:
-#                 self.sentences.extend(str(sent))
-#             # self.sentences.extend(list(doc.sents))
-#         # }}}
+        # Set picklePath based off stripped filePath
+        self.picklePath = cachePath + self.filePath.lstrip('./')
+        logging.debug("Cache file:{}".format(self.picklePath))
 
-        # {{{ Cache new object via pickle
-        # if cache is True and os.path.exists(self.picklePath):
+        os.makedirs(os.path.dirname(self.picklePath), exist_ok=True)
+
+        # {{{ Load from Pickle file if caching enabled.
+        # Rework this? Do not want to save pickleFile as an attribute.
+        if cache is True and os.path.exists(self.picklePath):
+            logging.debug('Reading cache file {}'.format(self.picklePath))
+            self.pickleLoad(self.picklePath)
+        # }}}
+        self.ingest(self.filePath)
+
+        # Initial chunking, to respect max initialization size for Doc object.
+        if filePath is not None:
+            self.docChunk(filePath, chunk_size)
+            # Concantenate all the docs for convenience.
+            self.c_doc = Doc.from_docs(self.docs_stack)
+            del self.docs_stack  # Have to test this deletion is safe!
+
+        # Save instance to picklePath.
+        # TODO: Change to json. Add compression.
         if cache is True:
             logging.debug('Writing cache file {}'.format(self.picklePath))
-            with open(
-                self.picklePath,
-                'wb'
-            ) as pickleFile:
-                pickle.dump(self, pickleFile)
-        # }}}
+            self.pickleSave(self.picklePath)
 
     def __getitem__(self, index):
         """
         Simply a test for subscript access.
         This needs to be placed into a special subscripting method.
         """
+        # {{{ Convert entire doc to list of chunks
+        if not self.sentArray:
+            for sent in self.c_doc.sents:
+                self.sentArray.append(sent.text)
+        # }}}
         if isinstance(index, slice):
             return self.sentArray[index.start:index.stop:index.step]
         else:
@@ -107,10 +126,6 @@ class TextProcessor:
 
         for sent in self.c_doc:
             yield sent
-#        for doc in self.docs_stack:
-#            for sent in doc.sents:
-#                yield sent
-        # with open(self.filePath, 'r', encoding='utf-8') as file:
         """
         for i, line in enumerate(self.text):
             if self.chunk_size and i >= self.chunk_size:
