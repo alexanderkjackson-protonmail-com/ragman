@@ -9,7 +9,7 @@
                 "python.pythonPath": "~/.cache/pypoetry/virtualenvs/ragman-3J4YK9ny-py3.10/bin/python",
                 "program": "test.py",
                 "args": [
-                    "./datasets/zshall.txt"
+                    "-f./datasets/zshall.txt"
                 ]
             }
         }
