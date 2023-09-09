@@ -29,7 +29,7 @@ if __name__ == '__main__':
                         )
     args = parser.parse_args()
     # }}}
-
+"""
     print('Running test of textprocessor')
     txt = TextProcessor(
         filePath=args.file if args.file is not None else
@@ -41,10 +41,11 @@ if __name__ == '__main__':
         cache=False
     )
     sentences = txt.get_sentence()
-    """
-    iterator = 0
-    for sentence in txt.get_sentence():
-        iterator += 1
-        # print("Statement {}: {}".format(iterator, sentence))
-        print("Chunks: {}".format(sentence))
-    """
+"""
+# Testing use of TextProcessor without complete initialization.
+txt = TextProcessor(filePath=None,
+                    chunk_size=1000000,
+                    model='en_core_web_sm',
+                    )
+txt.ingest('./datasets/short_example.txt')
+print('Done')
