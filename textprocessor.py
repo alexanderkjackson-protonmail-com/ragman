@@ -3,11 +3,20 @@ from spacy.tokens import Doc
 import os
 import pickle
 import logging
+from tools import preprocessors
 
 logLevel = os.environ.get('PYTHON_LOGLEVEL', default='ERROR')
 logging.basicConfig(level=logLevel)
 # ./.pickle/./datasets/zshall.txt
 cachePath = "./.pickle/"
+
+""" TODO
+1. Refactor variable names for consistent camelCase and good, meaningful names.
+2. Refactor TextProcessor methods such that parameters default to self but are
+    listed explicitly/may be outside the current object.
+3. Reorder methods within TextProcessor class.
+4. More error checking and class-based custom exceptions.
+"""
 
 
 class TextProcessor:
@@ -19,9 +28,10 @@ class TextProcessor:
             return
 
     def ingest(self, file):
+        self.filePath = file
         logging.debug('Ingesting dataset {}'.format(file))
-        with open(self.filePath, 'r', encoding='utf-8') as file:
-            self.text = file.read()
+        with open(file, 'r', encoding='utf-8') as dataset:
+            self.text = dataset.read()
 
     def pickleSave(self, file):
         """
@@ -85,12 +95,13 @@ class TextProcessor:
         if cache is True and os.path.exists(self.picklePath):
             logging.debug('Reading cache file {}'.format(self.picklePath))
             self.pickleLoad(self.picklePath)
+            return
         # }}}
         self.ingest(self.filePath)
 
-        # Initial chunking, to respect max initialization size for Doc object.
-        if filePath is not None:
-            self.docChunk(filePath, chunk_size)
+        # Initial chunking to respect max initialization size for Doc object.
+        if self.text is not None:
+            self.docChunk(self.text, self.chunk_size)
             # Concantenate all the docs for convenience.
             self.c_doc = Doc.from_docs(self.docs_stack)
             del self.docs_stack  # Have to test this deletion is safe!
