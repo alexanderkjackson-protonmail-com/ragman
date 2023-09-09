@@ -37,7 +37,8 @@ if __name__ == '__main__':
         chunk_size=args.number if args.number is not None else
         1000000,
         model=args.model if args.model is not None else
-        "en_core_web_sm"
+        "en_core_web_sm",
+        cache=False
     )
     sentences = txt.get_sentence()
     """
